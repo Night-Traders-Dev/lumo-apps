@@ -245,21 +245,20 @@ static void wx_parse(const char *json) {
     if (!weather) { wx.loaded = true; return; }
 
     wx.forecast_count = 0;
-    const char *p = strchr(weather, '[');
-    if (!p) { wx.loaded = true; return; }
+    const char *p = weather;
 
-    /* parse up to 3 day objects */
-    for (int i = 0; i < 3 && wx.forecast_count < 3; i++) {
-        const char *obj = strchr(p, '{');
-        if (!obj) break;
+    /* parse up to 3 day objects by finding the "date" field of each day */
+    for (int i = 0; i < 3; i++) {
+        p = strstr(p, "\"date\"");
+        if (!p) break;
 
         struct weather_day *day = &wx.forecast[wx.forecast_count];
-        json_str(obj, "date", day->date, sizeof(day->date));
-        day->max_f = json_int(obj, "maxtempF");
-        day->min_f = json_int(obj, "mintempF");
+        json_str(p, "date", day->date, sizeof(day->date));
+        day->max_f = json_int(p, "maxtempF");
+        day->min_f = json_int(p, "mintempF");
 
         /* get condition from first hourly entry */
-        const char *hourly = strstr(obj, "\"hourly\"");
+        const char *hourly = strstr(p, "\"hourly\"");
         if (hourly) {
             const char *hobj = strchr(hourly, '{');
             if (hobj) {
@@ -291,10 +290,7 @@ static void wx_parse(const char *json) {
         }
 
         wx.forecast_count++;
-
-        /* skip to next object */
-        p = strchr(obj + 1, '}');
-        if (p) p++;
+        p += 6; /* skip the current "date" key to find the next one */
     }
 
     wx.loaded = true;
